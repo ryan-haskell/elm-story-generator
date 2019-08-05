@@ -332,22 +332,25 @@ quests scenario =
 
 main : Program () Model Msg
 main =
-    Browser.sandbox
+    Browser.element
         { init = init
         , update = update
+        , subscriptions = always Sub.none
         , view = view
         }
 
 
-init : Model
-init =
+init : () -> ( Model, Cmd Msg )
+init _ =
     let
         initialSeed =
             "lmao"
     in
-    { seed = initialSeed
-    , scenario = generateScenario initialSeed
-    }
+    ( { seed = initialSeed
+      , scenario = generateScenario initialSeed
+      }
+    , Cmd.none
+    )
 
 
 generateScenario : String -> Scenario
@@ -412,25 +415,35 @@ type Choice
 
 type Msg
     = UpdateSeed String
+    | RandomSeed
     | Choose Choice
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         UpdateSeed seed ->
-            { model
+            ( { model
                 | seed = seed
                 , scenario = generateScenario seed
-            }
+              }
+            , Cmd.none
+            )
+
+        RandomSeed ->
+            ( model
+            , R.generate UpdateSeed (R.int 0 999999 |> R.map String.fromInt)
+            )
 
         Choose choice ->
             let
                 scenario =
                     model.scenario
             in
-            { scenario | choice = Just choice }
+            ( { scenario | choice = Just choice }
                 |> (\updated -> { model | scenario = updated })
+            , Cmd.none
+            )
 
 
 stringToInt : String -> Int
@@ -452,6 +465,7 @@ view model =
                     ]
                     []
                 ]
+            , button [ Events.onClick RandomSeed ] [ text "Random!" ]
             ]
         , model.seed
             |> seedify
