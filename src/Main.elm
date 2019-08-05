@@ -204,7 +204,7 @@ choices scenario =
         (\yes no wat ->
             case scenario.choice of
                 Just choice ->
-                    say "You"
+                    say scenario.player.name
                         (case choice of
                             Yes ->
                                 yes
