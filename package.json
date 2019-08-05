@@ -1,0 +1,20 @@
+{
+  "name": "stories",
+  "version": "1.0.0",
+  "description": "> generating interactive rpg dialogues in elm",
+  "main": "main.js",
+  "scripts": {
+    "start": "parcel index.html",
+    "dev": "parcel index.html",
+    "build": "parcel build index.html"
+  },
+  "keywords": [],
+  "author": "Ryan Haskell-Glatz",
+  "license": "ISC",
+  "devDependencies": {
+    "elm": "0.19.0-no-deps",
+    "elm-hot": "^1.1.1",
+    "node-elm-compiler": "^5.0.4",
+    "parcel-bundler": "1.12.3"
+  }
+}

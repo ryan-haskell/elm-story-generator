@@ -3,8 +3,6 @@
 
 ## local dev
 
-1. `npm i -g elm`
+1. `npm install`
 
-1. `elm install`
-
-1. `elm reactor`
+1. `npm run dev`
