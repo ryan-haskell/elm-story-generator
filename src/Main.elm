@@ -34,7 +34,6 @@ type Action
     | Save
     | Find
     | Destroy
-    | Win
     | Protect
 
 
@@ -46,7 +45,6 @@ actions =
         , Save
         , Find
         , Destroy
-        , Win
         , Protect
         ]
 
@@ -68,9 +66,6 @@ actionToString action =
 
         Destroy ->
             "destroy"
-
-        Win ->
-            "win"
 
         Protect ->
             "protect"
@@ -185,7 +180,6 @@ isNonsense { objective } =
     List.member ( objective.action, objective.object )
         [ ( Slay, Portal )
         , ( Destroy, War )
-        , ( Win, Princess )
         , ( Steal, Castle )
         , ( Protect, War )
         ]
@@ -239,7 +233,10 @@ choices scenario =
         )
         affirmativeResponses
         negativeResponses
-        (if isNonsense scenario then
+        (if scenario.npc.name == "Old Child" then
+            R.constant "You're very old for a child."
+
+         else if isNonsense scenario then
             nonsenseResponses scenario
 
          else if isGrossAf scenario then
@@ -297,6 +294,7 @@ affirmativeResponses =
         , "That sounds important!"
         , "You got it."
         , "I'm on it!"
+        , "Sure thing."
         ]
 
 
