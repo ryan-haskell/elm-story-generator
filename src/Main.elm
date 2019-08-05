@@ -28,30 +28,100 @@ subjects =
         ]
 
 
-verbs : Generator String
-verbs =
+type Action
+    = Steal
+    | Slay
+    | Save
+    | Find
+    | Destroy
+    | Win
+    | Protect
+
+
+actions : Generator Action
+actions =
     R.uniform
-        "steal"
-        [ "slay"
-        , "save"
-        , "find"
-        , "destroy"
-        , "win"
-        , "protect"
+        Steal
+        [ Slay
+        , Save
+        , Find
+        , Destroy
+        , Win
+        , Protect
         ]
 
 
-objects : Generator String
+actionToString : Action -> String
+actionToString action =
+    case action of
+        Steal ->
+            "steal"
+
+        Slay ->
+            "slay"
+
+        Save ->
+            "save"
+
+        Find ->
+            "find"
+
+        Destroy ->
+            "destroy"
+
+        Win ->
+            "win"
+
+        Protect ->
+            "protect"
+
+
+type Object
+    = Treasure
+    | Dragon
+    | Princess
+    | Amulet
+    | Portal
+    | War
+    | Castle
+
+
+objects : Generator Object
 objects =
     R.uniform
-        "treasure"
-        [ "dragon"
-        , "princess"
-        , "amulet"
-        , "portal"
-        , "war"
-        , "castle"
+        Treasure
+        [ Dragon
+        , Princess
+        , Amulet
+        , Portal
+        , War
+        , Castle
         ]
+
+
+objectToString : Object -> String
+objectToString item =
+    case item of
+        Treasure ->
+            "treasure"
+
+        Dragon ->
+            "dragon"
+
+        Princess ->
+            "princess"
+
+        Amulet ->
+            "amulet"
+
+        Portal ->
+            "portal"
+
+        War ->
+            "war"
+
+        Castle ->
+            "castle"
 
 
 capitalize : String -> String
@@ -61,11 +131,10 @@ capitalize str =
         |> Maybe.withDefault str
 
 
-intros : Generator (Html msg)
-intros =
-    R.map2 say
-        names
-        quests
+intros : Scenario -> Generator (Html msg)
+intros scenario =
+    R.map (say scenario.npc.name)
+        (quests scenario)
 
 
 say : String -> String -> Html msg
@@ -73,21 +142,70 @@ say name line =
     p [] [ span [] [ strong [] [ text (name ++ ": ") ], text line ] ]
 
 
-dialogues : Info msg -> Generator (Html msg)
-dialogues info =
+dialogues : Model -> Generator (Html Msg)
+dialogues model =
     R.map2 (\intro choice -> div [] [ intro, choice ])
-        intros
-        (choices info)
+        (intros model.scenario)
+        (choices model.choice model.scenario)
 
 
-choices : Info msg -> Generator (Html msg)
-choices info =
+nonsenseResponses : Scenario -> Generator String
+nonsenseResponses scenario =
+    R.uniform
+        "That doesn't make any sense."
+        [ "What does that even mean?"
+        , "Wait... '"
+            ++ actionToString scenario.objective.action
+            ++ "' the '"
+            ++ objectToString scenario.objective.object
+            ++ "'?"
+        ]
+
+
+grossedOutResponses : Scenario -> Generator String
+grossedOutResponses scenario =
+    R.uniform
+        "Ew, no."
+        [ "Gross! No way!"
+        , "That's messed up for sure."
+        ]
+
+
+confusedResponses : Generator String
+confusedResponses =
+    R.uniform
+        "What?"
+        [ "Why me?"
+        , "Who are you?"
+        ]
+
+
+isNonsense : Scenario -> Bool
+isNonsense { objective } =
+    List.member ( objective.action, objective.object )
+        [ ( Slay, Portal )
+        , ( Destroy, War )
+        , ( Win, Princess )
+        , ( Steal, Castle )
+        , ( Protect, War )
+        ]
+
+
+isGrossAf : Scenario -> Bool
+isGrossAf { objective } =
+    List.member ( objective.action, objective.object )
+        [ ( Destroy, Princess )
+        ]
+
+
+choices : Maybe Choice -> Scenario -> Generator (Html Msg)
+choices choice scenario =
     R.map3
         (\yes no wat ->
-            case info.choice of
-                Just choice ->
+            case choice of
+                Just someChoice ->
                     say "You"
-                        (case choice of
+                        (case someChoice of
                             Yes ->
                                 yes
 
@@ -100,16 +218,36 @@ choices info =
 
                 Nothing ->
                     p []
-                        [ button [ Events.onClick (info.choose Yes) ] [ text yes ]
+                        [ button
+                            [ Attr.style "color" "green"
+                            , Events.onClick (Choose Yes)
+                            ]
+                            [ text yes ]
                         , span [] [ text "  " ]
-                        , button [ Events.onClick (info.choose No) ] [ text no ]
+                        , button
+                            [ Attr.style "color" "red"
+                            , Events.onClick (Choose No)
+                            ]
+                            [ text no ]
                         , span [] [ text "  " ]
-                        , button [ Events.onClick (info.choose Wat) ] [ text wat ]
+                        , button
+                            [ Attr.style "color" "black"
+                            , Events.onClick (Choose Wat)
+                            ]
+                            [ text wat ]
                         ]
         )
         affirmativeResponses
         negativeResponses
-        confusedResponses
+        (if isNonsense scenario then
+            nonsenseResponses scenario
+
+         else if isGrossAf scenario then
+            grossedOutResponses scenario
+
+         else
+            confusedResponses
+        )
 
 
 names : Generator String
@@ -151,22 +289,12 @@ folks =
         ]
 
 
-confusedResponses : Generator String
-confusedResponses =
-    R.uniform
-        "What?"
-        [ "Why me?"
-        , "That doesn't make sense."
-        , "Who are you?"
-        , "Huh?"
-        ]
-
-
 affirmativeResponses : Generator String
 affirmativeResponses =
     R.uniform
         "How can I help?"
         [ "Okay!"
+        , "That sounds important!"
         , "You got it."
         , "I'm on it!"
         ]
@@ -178,32 +306,30 @@ negativeResponses =
         "Eh. Not really."
         [ "I'd rather not."
         , "Not today!"
-        , "Me no want do."
+        , "Don't wanna."
         , "Nah."
         , "Haha, no."
         ]
 
 
-quests : Generator String
-quests =
-    R.map4
-        (\imploration subject verb object ->
+quests : Scenario -> Generator String
+quests scenario =
+    R.map2
+        (\imploration subject ->
             String.join " "
                 [ imploration ++ ","
                 , subject ++ "!"
                 , "You"
                 , "must"
-                , verb
+                , actionToString scenario.objective.action
                 , "the"
-                , object
+                , objectToString scenario.objective.object
                 ]
                 ++ "!"
                 |> capitalize
         )
         greetings
         subjects
-        verbs
-        objects
 
 
 main : Program () Model Msg
@@ -217,15 +343,67 @@ main =
 
 init : Model
 init =
-    { seed = "123"
+    let
+        initialSeed =
+            "lmao"
+    in
+    { seed = initialSeed
+    , scenario = generateScenario initialSeed
     , choice = Nothing
     }
 
 
+generateScenario : String -> Scenario
+generateScenario =
+    seedify >> R.step scenarios >> Tuple.first
+
+
+seedify : String -> R.Seed
+seedify =
+    stringToInt >> R.initialSeed
+
+
 type alias Model =
     { seed : String
+    , scenario : Scenario
     , choice : Maybe Choice
     }
+
+
+type alias Scenario =
+    { npc : Person
+    , objective : Objective
+    , player : Person
+    }
+
+
+type alias Person =
+    { name : String
+    }
+
+
+type alias Objective =
+    { action : Action
+    , object : Object
+    }
+
+
+scenarios : Generator Scenario
+scenarios =
+    R.map3 Scenario
+        npc
+        objectives
+        (R.constant (Person "You"))
+
+
+npc : Generator Person
+npc =
+    R.map Person names
+
+
+objectives : Generator Objective
+objectives =
+    R.map2 Objective actions objects
 
 
 type Choice
@@ -243,7 +421,10 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         UpdateSeed seed ->
-            { model | seed = seed }
+            { model
+                | seed = seed
+                , scenario = generateScenario seed
+            }
 
         Choose choice ->
             { model | choice = Just choice }
@@ -254,12 +435,6 @@ stringToInt =
     String.toList
         >> List.map Char.toCode
         >> List.sum
-
-
-type alias Info msg =
-    { choice : Maybe Choice
-    , choose : Choice -> msg
-    }
 
 
 view : Model -> Html Msg
@@ -276,8 +451,7 @@ view model =
                 ]
             ]
         , model.seed
-            |> stringToInt
-            |> R.initialSeed
-            |> R.step (dialogues { choice = model.choice, choose = Choose })
+            |> seedify
+            |> R.step (dialogues model)
             |> Tuple.first
         ]
