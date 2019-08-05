@@ -146,7 +146,7 @@ dialogues : Model -> Generator (Html Msg)
 dialogues model =
     R.map2 (\intro choice -> div [] [ intro, choice ])
         (intros model.scenario)
-        (choices model.choice model.scenario)
+        (choices model.scenario)
 
 
 nonsenseResponses : Scenario -> Generator String
@@ -198,14 +198,14 @@ isGrossAf { objective } =
         ]
 
 
-choices : Maybe Choice -> Scenario -> Generator (Html Msg)
-choices choice scenario =
+choices : Scenario -> Generator (Html Msg)
+choices scenario =
     R.map3
         (\yes no wat ->
-            case choice of
-                Just someChoice ->
+            case scenario.choice of
+                Just choice ->
                     say "You"
-                        (case someChoice of
+                        (case choice of
                             Yes ->
                                 yes
 
@@ -349,7 +349,6 @@ init =
     in
     { seed = initialSeed
     , scenario = generateScenario initialSeed
-    , choice = Nothing
     }
 
 
@@ -366,7 +365,6 @@ seedify =
 type alias Model =
     { seed : String
     , scenario : Scenario
-    , choice : Maybe Choice
     }
 
 
@@ -374,6 +372,7 @@ type alias Scenario =
     { npc : Person
     , objective : Objective
     , player : Person
+    , choice : Maybe Choice
     }
 
 
@@ -390,10 +389,11 @@ type alias Objective =
 
 scenarios : Generator Scenario
 scenarios =
-    R.map3 Scenario
+    R.map4 Scenario
         npc
         objectives
         (R.constant (Person "You"))
+        (R.constant Nothing)
 
 
 npc : Generator Person
@@ -427,7 +427,12 @@ update msg model =
             }
 
         Choose choice ->
-            { model | choice = Just choice }
+            let
+                scenario =
+                    model.scenario
+            in
+            { scenario | choice = Just choice }
+                |> (\updated -> { model | scenario = updated })
 
 
 stringToInt : String -> Int
